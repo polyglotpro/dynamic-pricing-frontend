@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8000';
+//const DEFAULT_API_BASE_URL = 'http://localhost:8000';
+const DEFAULT_API_BASE_URL = 'https://dynamic-pricing-api-tau.vercel.app'
 
 function normalizeBaseUrl(value: string): string {
   const trimmed = value.trim();
