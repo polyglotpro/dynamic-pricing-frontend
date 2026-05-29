@@ -1261,7 +1261,9 @@ const App: React.FC = () => {
                     <tr key={item.sku_id} className="border-t border-[var(--border)] hover:bg-black/5 dark:hover:bg-white/5 transition-all group">
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
-                          <span className="text-[var(--text-h)] font-bold text-base group-hover:text-blue-500 transition-colors">{item.product_name}</span>
+                          <span className="text-[var(--text-h)] font-bold text-base group-hover:text-blue-500 transition-colors">
+                            {item.product_name || item.product || item.name || item.sku_id}
+                          </span>
                           <span className="text-[10px] text-[var(--text)] font-mono mt-1">{item.sku_id}</span>
                         </div>
                       </td>
