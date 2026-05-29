@@ -64,10 +64,26 @@ interface Recommendation {
   confidence: number;
 }
 
+interface HealthResponse {
+  ok?: boolean;
+  status?: string;
+  connected?: boolean;
+}
+
 const API_BASE = API_BASE_URL;
 
 function safeArray<T = any>(value: any): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+async function fetchJson<T>(url: string, fallbackMessage: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(errorBody || `${fallbackMessage} (${response.status})`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 const ComparisonModal: React.FC<{ 
@@ -404,30 +420,41 @@ const App: React.FC = () => {
     return () => clearTimeout(handler);
   }, [localConfig]);
 
+  const {
+    data: backendHealth,
+    isLoading: isHealthLoading,
+  } = useQuery<HealthResponse>({
+    queryKey: ['health'],
+    queryFn: async () => {
+      const data = await fetchJson<HealthResponse>(`${API_BASE}/health`, 'Failed to load backend health');
+      if (data.ok === true || data.status === 'ok' || data.connected === true) {
+        return data;
+      }
+
+      throw new Error('Backend health check returned an unhealthy response');
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   const { data: recommendations, isLoading, isError, refetch } = useQuery<Recommendation[]>({
     queryKey: ['recommendations'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/all-recommendations`);
-      if (!response.ok) throw new Error('Network response was not ok');
-      return response.json();
+      return fetchJson<Recommendation[]>(`${API_BASE}/all-recommendations`, 'Failed to load recommendations');
     }
   });
 
   const { data: inventory } = useQuery<any[]>({
     queryKey: ['inventory'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/inventory`);
-      if (!response.ok) throw new Error('Network response was not ok');
-      return response.json();
+      return fetchJson<any[]>(`${API_BASE}/inventory`, 'Failed to load inventory');
     }
   });
 
   const { data: config, isLoading: configLoading } = useQuery<any>({
     queryKey: ['settings'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/settings`);
-      if (!response.ok) throw new Error('Network response was not ok');
-      return response.json();
+      return fetchJson<any>(`${API_BASE}/settings`, 'Failed to load settings');
     }
   });
 
@@ -727,6 +754,7 @@ const App: React.FC = () => {
   };
 
   const researchRecsAll = safeArray<Recommendation>(recommendations);
+  const backendIsHealthy = backendHealth?.ok === true || backendHealth?.status === 'ok' || backendHealth?.connected === true;
   const researchBuckets = [
     {
       id: 'all',
@@ -901,8 +929,14 @@ const App: React.FC = () => {
         <div className="mt-auto p-4 bg-gradient-to-br from-blue-900/20 to-blue-900/20 rounded-2xl border border-blue-500/10">
           <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-2">System Status</p>
           <div className="flex items-center gap-2 whitespace-nowrap">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shrink-0" />
-            <span className="text-sm text-slate-600 dark:text-gray-300 font-medium">Engine Active</span>
+            <div
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                isHealthLoading ? 'bg-amber-400 animate-pulse' : backendIsHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+              }`}
+            />
+            <span className="text-sm text-slate-600 dark:text-gray-300 font-medium">
+              {isHealthLoading ? 'Checking backend...' : backendIsHealthy ? 'Engine Active' : 'Backend Unreachable'}
+            </span>
           </div>
         </div>
       </aside>
