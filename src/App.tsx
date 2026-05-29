@@ -496,8 +496,17 @@ const App: React.FC = () => {
         method: 'POST',
         body: formData,
       });
-      if (!response.ok) throw new Error('Upload failed');
-      return response.json();
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = payload?.detail;
+        const message = typeof detail === 'string'
+          ? detail
+          : detail?.message
+            ? `${detail.message}${detail.missing_required_columns?.length ? ` Missing: ${detail.missing_required_columns.join(', ')}` : ''}`
+            : 'Upload failed';
+        throw new Error(message);
+      }
+      return payload;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['recommendations'] });
@@ -717,7 +726,10 @@ const App: React.FC = () => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "sku_id,product_name,category,current_price,cost_of_goods_sold,stock_on_hand,sell_through_rate_weekly,days_of_cover,ageing_days,current_ad_spend_per_unit,roas_30d\nSKU001,Premium Kurta,Apparel,2999,1200,450,0.15,45,30,50,4.2";
+    const csvContent = [
+      "sku_id,product_name,product_type,hero_sku,current_price,cogs,competitor_price,mrp,stock_on_hand,days_of_cover,sell_through_weekly_pct,ageing_days,stockout_risk_pct,days_to_season_end,current_ad_spend_per_unit,roas,conversion_rate,ctr,cpc,last_30d_sales,avg_daily_sessions,conversion_benchmark",
+      "SKU001,Premium Kurta,stable,false,2999,1200,3199,3499,450,45,0.15,30,18,120,50,4.2,0.031,0.02,10,120,500,0.028"
+    ].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
