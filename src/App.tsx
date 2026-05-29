@@ -70,6 +70,11 @@ interface HealthResponse {
   connected?: boolean;
 }
 
+interface RecommendationResponse {
+  count?: number;
+  results?: Recommendation[];
+}
+
 const API_BASE = API_BASE_URL;
 
 function safeArray<T = any>(value: any): T[] {
@@ -437,10 +442,10 @@ const App: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
-  const { data: recommendations, isLoading, isError, refetch } = useQuery<Recommendation[]>({
+  const { data: recommendationsResponse, isLoading, isError, refetch } = useQuery<RecommendationResponse | Recommendation[]>({
     queryKey: ['recommendations'],
     queryFn: async () => {
-      return fetchJson<Recommendation[]>(`${API_BASE}/all-recommendations`, 'Failed to load recommendations');
+      return fetchJson<RecommendationResponse | Recommendation[]>(`${API_BASE}/all-recommendations`, 'Failed to load recommendations');
     }
   });
 
@@ -584,20 +589,26 @@ const App: React.FC = () => {
     }
   }, [config]);
 
-  const selectedSku = recommendations?.find(r => r.sku_id === selectedSkuId);
+  const recommendationList = safeArray<Recommendation>(
+    Array.isArray(recommendationsResponse)
+      ? recommendationsResponse
+      : recommendationsResponse?.results
+  );
+
+  const selectedSku = recommendationList.find(r => r.sku_id === selectedSkuId);
   
   // Calculate impact stats
   const calculateImpact = () => {
-    if (!recommendations || !simResults || !Array.isArray(simResults) || recommendations.length === 0 || simResults.length === 0) return null;
+    if (!recommendationList || !simResults || !Array.isArray(simResults) || recommendationList.length === 0 || simResults.length === 0) return null;
     
     try {
-      const baselineDiscounts = recommendations.filter(r => r.final_recommendation.price_change_pct < 0).length;
+      const baselineDiscounts = recommendationList.filter(r => r.final_recommendation.price_change_pct < 0).length;
       const proposedDiscounts = simResults.filter(r => r?.final_recommendation?.price_change_pct < 0).length;
       
-      const baselineMargin = recommendations.reduce((acc, r) => acc + (r.final_recommendation.projected_margin_pct || 0), 0) / recommendations.length;
+      const baselineMargin = recommendationList.reduce((acc, r) => acc + (r.final_recommendation.projected_margin_pct || 0), 0) / recommendationList.length;
       const proposedMargin = simResults.reduce((acc, r) => acc + (r?.final_recommendation?.projected_margin_pct || 0), 0) / simResults.length;
 
-      const baselineAd = recommendations.filter(r => r.final_recommendation.ad_change_pct > 0).length;
+      const baselineAd = recommendationList.filter(r => r.final_recommendation.ad_change_pct > 0).length;
       const proposedAd = simResults.filter(r => r?.final_recommendation?.ad_change_pct > 0).length;
 
       return {
@@ -612,13 +623,13 @@ const App: React.FC = () => {
   };
 
   const calculateChangedSkus = () => {
-    if (!recommendations || !simResults || !Array.isArray(simResults)) return [];
+    if (!recommendationList || !simResults || !Array.isArray(simResults)) return [];
     const changes: any[] = [];
     
     try {
       simResults.forEach(sim => {
         if (!sim || !sim.sku_id) return;
-        const baseline = recommendations.find(r => r.sku_id === sim.sku_id);
+        const baseline = recommendationList.find(r => r.sku_id === sim.sku_id);
         if (baseline && (
           baseline.final_recommendation.price_change_pct !== sim.final_recommendation?.price_change_pct ||
           baseline.final_recommendation.ad_change_pct !== sim.final_recommendation?.ad_change_pct
@@ -684,7 +695,7 @@ const App: React.FC = () => {
     return String(text ?? '').toLowerCase().includes(normalizedQuery);
   };
 
-  const filteredRecommendations = safeArray<Recommendation>(recommendations)
+  const filteredRecommendations = recommendationList
     .filter(r => !approvedItems.find(a => a.sku_id === r.sku_id))
     .filter(r => matchesQuery(r.sku_id) || matchesQuery(r.product_name) || safeArray<string>(r.scenario_tags).some(t => matchesQuery(t)));
 
@@ -753,7 +764,7 @@ const App: React.FC = () => {
     return 'stable_baseline';
   };
 
-  const researchRecsAll = safeArray<Recommendation>(recommendations);
+  const researchRecsAll = recommendationList;
   const backendIsHealthy = backendHealth?.ok === true || backendHealth?.status === 'ok' || backendHealth?.connected === true;
   const researchBuckets = [
     {
@@ -1634,7 +1645,7 @@ const App: React.FC = () => {
                 <div className="px-8 py-4 border-b border-[var(--border)] bg-black/5 dark:bg-black/20 flex flex-wrap items-center justify-between gap-4">
                   <div className="text-[var(--text)] text-xs font-medium opacity-80">
                     {(() => {
-                      const recs = safeArray<Recommendation>(recommendations);
+                      const recs = recommendationList;
                       const applied = recs[0]?.applied_config;
                       if (!applied) return 'Applied Config: unknown (backend not returning applied_config yet)';
                       const version = applied.config_version ?? 'unknown';
@@ -1644,7 +1655,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="text-[var(--text)] text-[10px] font-mono opacity-60">
                     {(() => {
-                      const recs = safeArray<Recommendation>(recommendations);
+                      const recs = recommendationList;
                       const applied = recs[0]?.applied_config;
                       return applied?.config_updated_at ? `updated_at: ${applied.config_updated_at}` : '';
                     })()}
@@ -1661,7 +1672,7 @@ const App: React.FC = () => {
                     </thead>
                     <tbody className="text-sm">
                       {(() => {
-                        const recs = safeArray<Recommendation>(recommendations);
+                        const recs = recommendationList;
                         const total = recs.length;
                         const avgMargin = total
                           ? recs.reduce((acc, r) => acc + (r.final_recommendation?.projected_margin_pct ?? 0), 0) / total
