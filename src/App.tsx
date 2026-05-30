@@ -509,6 +509,8 @@ const App: React.FC = () => {
       return payload;
     },
     onSuccess: async (data) => {
+      await new Promise((resolve) => setTimeout(resolve, 15000));
+
       queryClient.invalidateQueries({ queryKey: ['recommendations'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['settings'] });
