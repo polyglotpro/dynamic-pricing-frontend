@@ -597,6 +597,39 @@ const App: React.FC = () => {
     }
   }, [config]);
 
+  React.useEffect(() => {
+    const refreshQueries = async () => {
+      switch (activeTab) {
+        case 'dashboard':
+          queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+          await queryClient.refetchQueries({ queryKey: ['recommendations'] });
+          break;
+        case 'inventory':
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          await queryClient.refetchQueries({ queryKey: ['inventory'] });
+          break;
+        case 'settings':
+          queryClient.invalidateQueries({ queryKey: ['settings'] });
+          await queryClient.refetchQueries({ queryKey: ['settings'] });
+          break;
+        case 'research':
+          queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+          await queryClient.refetchQueries({ queryKey: ['recommendations'] });
+          break;
+        case 'data':
+          queryClient.invalidateQueries({ queryKey: ['uploadHistory'] });
+          await queryClient.refetchQueries({ queryKey: ['uploadHistory'] });
+          break;
+        case 'activity':
+          queryClient.invalidateQueries({ queryKey: ['health'] });
+          await queryClient.refetchQueries({ queryKey: ['health'] });
+          break;
+      }
+    };
+
+    void refreshQueries();
+  }, [activeTab, queryClient]);
+
   const recommendationList = safeArray<Recommendation>(
     Array.isArray(recommendationsResponse)
       ? recommendationsResponse
