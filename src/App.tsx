@@ -24,7 +24,8 @@ import {
   Sun,
   Moon,
   FlaskConical,
-  Lightbulb
+  Lightbulb,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
