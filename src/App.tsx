@@ -769,6 +769,7 @@ const App: React.FC = () => {
         setIsAuthenticated(true);
         setUsernameInput('');
         setPasswordInput('');
+        window.location.reload();
       } else {
         setLoginError('Invalid security credentials. Access denied.');
       }
@@ -1033,18 +1034,7 @@ const App: React.FC = () => {
             </button>
           </form>
 
-          {/* Dummy Credentials Callout */}
-          <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] p-4 rounded-2xl text-[var(--text)] text-xs flex flex-col gap-1.5 leading-relaxed">
-            <div className="flex items-center gap-2 font-bold text-[var(--text-h)]">
-              <Lightbulb className="text-amber-500" size={14} />
-              <span>Demo Security Bypass</span>
-            </div>
-            <p className="opacity-75">Use the following dummy parameters to authenticate:</p>
-            <div className="grid grid-cols-2 gap-2 mt-1 font-mono text-[10px] bg-black/10 dark:bg-black/40 p-2 rounded-lg border border-[var(--border)]">
-              <div>Username: <span className="text-blue-500 font-bold">admin</span></div>
-              <div>Password: <span className="text-blue-500 font-bold">admin123</span></div>
-            </div>
-          </div>
+
 
           {/* Theme Selector */}
           <div className="flex justify-center border-t border-[var(--border)] pt-4 mt-2">
@@ -1126,6 +1116,7 @@ const App: React.FC = () => {
             onClick={() => {
               localStorage.removeItem('auth_token');
               setIsAuthenticated(false);
+              window.location.reload();
             }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all border border-transparent text-[var(--text)] hover:text-rose-500 hover:bg-rose-500/10 mt-2 cursor-pointer w-full text-left group"
           >
