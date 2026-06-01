@@ -398,6 +398,14 @@ const MetricRow: React.FC<{ label: string, value: number, format: string, highli
 
 const App: React.FC = () => {
   const queryClient = useQueryClient();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('auth_token') === 'dummy-token-123';
+  });
+  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'settings' | 'activity' | 'data' | 'research'>('dashboard');
   const [dashboardView, setDashboardView] = useState<'pending' | 'approved'>('pending');
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
@@ -749,6 +757,25 @@ const App: React.FC = () => {
   const impact = stableImpact;
   const changedSkus = stableChanges;
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setIsLoginLoading(true);
+
+    // Simulate network delay for premium feel
+    setTimeout(() => {
+      if (usernameInput === 'admin' && passwordInput === 'admin123') {
+        localStorage.setItem('auth_token', 'dummy-token-123');
+        setIsAuthenticated(true);
+        setUsernameInput('');
+        setPasswordInput('');
+      } else {
+        setLoginError('Invalid security credentials. Access denied.');
+      }
+      setIsLoginLoading(false);
+    }, 1000);
+  };
+
   const logActivity = (type: 'approval' | 'override' | 'setting', title: string, details: string, color: string) => {
     setActivityLog(prev => [{
       id: Date.now(),
@@ -925,6 +952,115 @@ const App: React.FC = () => {
     }, 0) / invTotal * 100
     : 0;
 
+  if (!isAuthenticated) {
+    return (
+      <div className={`${theme === 'dark' ? 'dark' : ''} min-h-screen bg-[var(--bg)] flex items-center justify-center relative overflow-hidden font-sans p-6`}>
+        {/* Background glowing blobs */}
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-md bg-[var(--bg-secondary)]/50 backdrop-blur-xl border border-[var(--border)] rounded-3xl p-8 shadow-2xl relative z-10 flex flex-col gap-6"
+        >
+          {/* Header */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 mb-4 border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.15)]">
+              <BrainCircuit size={32} className="animate-pulse" />
+            </div>
+            <h2 className="text-3xl font-heading font-extrabold text-[var(--text-h)] tracking-tight">FluxPricing Core</h2>
+            <p className="text-[var(--text)] text-sm opacity-60 mt-1 font-medium">Autonomous Multi-Agent Orchestration Engine</p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-heading font-black text-slate-400 dark:text-gray-400 uppercase tracking-widest pl-1">Security Username</label>
+              <input
+                type="text"
+                required
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="Enter admin user identifier..."
+                className="bg-black/5 dark:bg-black/20 border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-[var(--text-h)] transition-all placeholder:text-[var(--text)] placeholder:opacity-30"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-heading font-black text-slate-400 dark:text-gray-400 uppercase tracking-widest pl-1">Access Token / Password</label>
+              <input
+                type="password"
+                required
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Enter password credential..."
+                className="bg-black/5 dark:bg-black/20 border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-[var(--text-h)] transition-all placeholder:text-[var(--text)] placeholder:opacity-30"
+              />
+            </div>
+
+            <AnimatePresence>
+              {loginError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-rose-500/10 text-rose-500 text-xs font-bold px-4 py-3 rounded-2xl border border-rose-500/20 flex items-center gap-2"
+                >
+                  <AlertCircle size={16} />
+                  <span>{loginError}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button
+              type="submit"
+              disabled={isLoginLoading}
+              className="mt-2 w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 disabled:opacity-50 text-white font-black rounded-2xl shadow-xl shadow-blue-500/10 transition-all flex items-center justify-center gap-3 cursor-pointer"
+            >
+              {isLoginLoading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Decrypting Ledger Keys...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={18} />
+                  <span>Establish Secure Connection</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Dummy Credentials Callout */}
+          <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] p-4 rounded-2xl text-[var(--text)] text-xs flex flex-col gap-1.5 leading-relaxed">
+            <div className="flex items-center gap-2 font-bold text-[var(--text-h)]">
+              <Lightbulb className="text-amber-500" size={14} />
+              <span>Demo Security Bypass</span>
+            </div>
+            <p className="opacity-75">Use the following dummy parameters to authenticate:</p>
+            <div className="grid grid-cols-2 gap-2 mt-1 font-mono text-[10px] bg-black/10 dark:bg-black/40 p-2 rounded-lg border border-[var(--border)]">
+              <div>Username: <span className="text-blue-500 font-bold">admin</span></div>
+              <div>Password: <span className="text-blue-500 font-bold">admin123</span></div>
+            </div>
+          </div>
+
+          {/* Theme Selector */}
+          <div className="flex justify-center border-t border-[var(--border)] pt-4 mt-2">
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="flex items-center gap-2 text-xs font-bold text-[var(--text)] opacity-70 hover:opacity-100 transition-all"
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+              <span>Toggle {theme === 'light' ? 'Dark' : 'Light'} Mode</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} h-screen bg-[var(--bg)] text-[var(--text)] font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300`}>
       <div className="flex h-full">
@@ -985,6 +1121,17 @@ const App: React.FC = () => {
               <span className="font-bold text-sm">Data History</span>
             </button>
           </nav>
+
+          <button
+            onClick={() => {
+              localStorage.removeItem('auth_token');
+              setIsAuthenticated(false);
+            }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all border border-transparent text-[var(--text)] hover:text-rose-500 hover:bg-rose-500/10 mt-2 cursor-pointer w-full text-left group"
+          >
+            <LogOut size={16} className="text-[var(--text)] group-hover:text-rose-500" />
+            <span className="font-bold text-sm">Logout</span>
+          </button>
 
 
           <div className="mt-auto p-4 bg-gradient-to-br from-blue-900/20 to-blue-900/20 rounded-2xl border border-blue-500/10">
