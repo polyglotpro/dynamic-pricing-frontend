@@ -77,6 +77,30 @@ interface RecommendationResponse {
 
 const API_BASE = API_BASE_URL;
 
+function getAuthToken(): string | null {
+  try {
+    return window.localStorage.getItem('auth_token');
+  } catch {
+    return null;
+  }
+}
+
+function setAuthToken(token: string): void {
+  try {
+    window.localStorage.setItem('auth_token', token);
+  } catch {
+    // Ignore storage failures so the UI can still render and accept a login retry.
+  }
+}
+
+function clearAuthToken(): void {
+  try {
+    window.localStorage.removeItem('auth_token');
+  } catch {
+    // Ignore storage failures for the same reason as setAuthToken.
+  }
+}
+
 function safeArray<T = any>(value: any): T[] {
   return Array.isArray(value) ? value : [];
 }
@@ -399,7 +423,7 @@ const MetricRow: React.FC<{ label: string, value: number, format: string, highli
 const App: React.FC = () => {
   const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('auth_token') === 'dummy-token-123';
+    return getAuthToken() === 'dummy-token-123';
   });
   const [usernameInput, setUsernameInput] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
@@ -765,7 +789,7 @@ const App: React.FC = () => {
     // Simulate network delay for premium feel
     setTimeout(() => {
       if (usernameInput === 'admin' && passwordInput === 'admin123') {
-        localStorage.setItem('auth_token', 'dummy-token-123');
+        setAuthToken('dummy-token-123');
         setIsAuthenticated(true);
         setUsernameInput('');
         setPasswordInput('');
@@ -1114,7 +1138,7 @@ const App: React.FC = () => {
 
           <button
             onClick={() => {
-              localStorage.removeItem('auth_token');
+              clearAuthToken();
               setIsAuthenticated(false);
               window.location.reload();
             }}
