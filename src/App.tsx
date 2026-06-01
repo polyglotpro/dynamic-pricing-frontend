@@ -130,6 +130,14 @@ function clearAuthToken(): void {
   }
 }
 
+function clearAppStorage(): void {
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Ignore storage failures so logout still works in locked-down browsers.
+  }
+}
+
 function safeArray<T = any>(value: any): T[] {
   return Array.isArray(value) ? value : [];
 }
@@ -1167,7 +1175,7 @@ const App: React.FC = () => {
 
           <button
             onClick={() => {
-              clearAuthToken();
+              clearAppStorage();
               setIsAuthenticated(false);
               window.location.reload();
             }}
