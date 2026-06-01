@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Component, useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -76,6 +76,34 @@ interface RecommendationResponse {
 }
 
 const API_BASE = API_BASE_URL;
+
+class AppErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-h)] p-6">
+          <div className="max-w-xl rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)] p-8 shadow-2xl">
+            <h1 className="text-3xl font-heading font-extrabold mb-3">Application failed to render</h1>
+            <p className="text-[var(--text)]">
+              The page hit a runtime error before it could draw the login screen. Check the browser console for the exact error.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function getAuthToken(): string | null {
   try {
@@ -2355,5 +2383,11 @@ const SettingField: React.FC<{ label: string, value: number, min: number, max: n
   );
 };
 
-export default App;
+const AppWithBoundary: React.FC = () => (
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
+
+export default AppWithBoundary;
 
