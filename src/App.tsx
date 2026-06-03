@@ -538,8 +538,6 @@ const App: React.FC = () => {
       return response.json();
     },
     onSuccess: async (_, variables) => {
-      setLocalConfig((current: any) => current ? { ...current, ...variables } : variables);
-      queryClient.setQueryData(['settings'], variables);
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       queryClient.invalidateQueries({ queryKey: ['recommendations'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -547,6 +545,7 @@ const App: React.FC = () => {
       await queryClient.refetchQueries({ queryKey: ['settings'] });
       await queryClient.refetchQueries({ queryKey: recommendationQueryKey });
       await queryClient.refetchQueries({ queryKey: ['inventory'] });
+      setLocalConfig((current: any) => current ? { ...current, ...variables } : variables);
       logActivity(
         'setting',
         'Global Configuration Sync',
@@ -662,7 +661,7 @@ const App: React.FC = () => {
 
   // Initialize localConfig when config loads
   React.useEffect(() => {
-    if (config && !localConfig) {
+    if (config) {
       setLocalConfig(config);
     }
   }, [config]);
@@ -823,7 +822,7 @@ const App: React.FC = () => {
 
     // Simulate network delay for premium feel
     setTimeout(() => {
-      if (username === 'admin' && password === 'admin123') {
+      if (username === 'admin' && password === 'Group4Demo') {
         setAuthToken('dummy-token-123');
         setIsAuthenticated(true);
         window.location.reload();
