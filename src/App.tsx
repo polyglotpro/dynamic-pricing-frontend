@@ -175,6 +175,51 @@ function getRuleTooltip(rec: Recommendation | null | undefined, ruleId: string):
     .join('\n');
 }
 
+function getWhyTone(rec: Recommendation | null | undefined): {
+  badge: string;
+  panel: string;
+  icon: React.ReactNode;
+  label: string;
+} {
+  const priceAction = String(rec?.final_recommendation?.price_action || '').toLowerCase();
+  const adAction = String(rec?.final_recommendation?.ad_action || '').toLowerCase();
+  const objective = String(rec?.primary_objective || '').toLowerCase();
+
+  if (objective.includes('sell_through') || priceAction.includes('deep') || priceAction.includes('reduce')) {
+    return {
+      badge: 'border-amber-500/20 bg-amber-500/10 text-amber-500',
+      panel: 'border-amber-500/20 bg-[var(--bg-secondary)]',
+      icon: <Package size={10} />,
+      label: 'Clearance / Sell-through',
+    };
+  }
+
+  if (objective.includes('margin') || priceAction.includes('hold') || priceAction.includes('limit')) {
+    return {
+      badge: 'border-rose-500/20 bg-rose-500/10 text-rose-500',
+      panel: 'border-rose-500/20 bg-[var(--bg-secondary)]',
+      icon: <ShieldAlert size={10} />,
+      label: 'Protection / Governance',
+    };
+  }
+
+  if (adAction.includes('increase') || adAction.includes('defend') || priceAction.includes('increase')) {
+    return {
+      badge: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500',
+      panel: 'border-emerald-500/20 bg-[var(--bg-secondary)]',
+      icon: <TrendingUp size={10} />,
+      label: 'Growth / Visibility',
+    };
+  }
+
+  return {
+    badge: 'border-blue-500/20 bg-blue-500/10 text-blue-500',
+    panel: 'border-blue-500/20 bg-[var(--bg-secondary)]',
+    icon: <Lightbulb size={10} />,
+    label: 'Balanced / Stable',
+  };
+}
+
 async function fetchJson<T>(url: string, fallbackMessage: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
@@ -264,6 +309,24 @@ const ComparisonModal: React.FC<{
                     {rec.applied_config?.config_updated_at ? `updated_at: ${rec.applied_config.config_updated_at}` : ''}
                   </div>
                 </div>
+                <div className="mb-6 bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb size={14} className="text-amber-500" />
+                    <h5 className="text-sm font-black uppercase tracking-[0.25em] text-[var(--text-h)]">Why this recommendation?</h5>
+                  </div>
+                  <p className="text-sm text-[var(--text)] leading-relaxed">
+                    {rec.explanation || summarizeWhy(rec)}
+                  </p>
+                  {safeArray<string>(rec.decision_parameters).length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {safeArray<string>(rec.decision_parameters).slice(0, 6).map((item) => (
+                        <span key={item} className="px-2 py-1 rounded-lg border border-[var(--border)] bg-black/5 dark:bg-white/5 text-[var(--text)] text-[10px] font-bold">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Pricing Rules</p>
@@ -274,7 +337,10 @@ const ComparisonModal: React.FC<{
                             {r.rule_id}
                           </span>
                           <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
-                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500 mb-2">Pricing Rule</div>
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500 mb-2">
+                              <TrendingDown size={10} />
+                              Pricing Rule
+                            </div>
                             <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
                               {String(r?.description || r?.rule_id || '')}
                             </div>
@@ -298,7 +364,10 @@ const ComparisonModal: React.FC<{
                             {r.rule_id}
                           </span>
                           <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
-                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 mb-2">Advertising Rule</div>
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 mb-2">
+                              <Zap size={10} />
+                              Advertising Rule
+                            </div>
                             <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
                               {String(r?.description || r?.rule_id || '')}
                             </div>
@@ -322,7 +391,10 @@ const ComparisonModal: React.FC<{
                             {c.conflict_id || c.type}
                           </span>
                           <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
-                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-500 mb-2">Conflict Resolution</div>
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-amber-500 mb-2">
+                              <ShieldAlert size={10} />
+                              Conflict Resolution
+                            </div>
                             <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
                               {String(c?.resolution || c?.type || 'Conflict')}
                             </div>
@@ -1353,25 +1425,30 @@ const App: React.FC = () => {
                               <span className="text-[10px] text-[var(--text)] font-mono">{rec.sku_id}</span>
                             </div>
                             <div className="mt-2">
+                              {(() => {
+                                const tone = getWhyTone(rec);
+                                return (
                               <div className="relative inline-block group/why">
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest cursor-help">
-                                  <Lightbulb size={10} />
+                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest cursor-help ${tone.badge}`}>
+                                  {tone.icon}
                                   Why
                                 </span>
-                                <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/why:opacity-100 group-hover/why:translate-y-0">
-                                  <div className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 mb-2">Why this recommendation</div>
+                                <div className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/why:opacity-100 group-hover/why:translate-y-0 ${tone.panel}`}>
+                                  <div className="text-[10px] font-black uppercase tracking-[0.25em] mb-2 text-[var(--text-h)]">{tone.label}</div>
                                   <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
                                     {summarizeWhy(rec)}
                                   </div>
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     {safeArray<string>(rec.decision_parameters).slice(0, 3).map((item) => (
-                                      <span key={item} className="px-2 py-1 rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-bold">
+                                      <span key={item} className="px-2 py-1 rounded-lg border border-[var(--border)] bg-black/5 dark:bg-white/5 text-[var(--text)] text-[10px] font-bold">
                                         {item}
                                       </span>
                                     ))}
                                   </div>
                                 </div>
                               </div>
+                                );
+                              })()}
                             </div>
                             <div className="flex gap-2 mb-3 flex-wrap">
                               {rec.scenario_tags?.map((tag: string) => (
