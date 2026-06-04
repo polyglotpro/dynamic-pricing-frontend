@@ -1,0 +1,6 @@
+sku_id,product_name,product_type,hero_sku,current_price,cogs,competitor_price,mrp,stock_on_hand,days_of_cover,sell_through_weekly_pct,ageing_days,stockout_risk_pct,days_to_season_end,current_ad_spend_per_unit,roas,conversion_rate,ctr,cpc,last_30d_sales,avg_daily_sessions,conversion_benchmark,weekly_sales_vs_baseline,trend_7d_pct,demand_uncertainty_sigma
+HD-001,FabIndia Cotton Kurta,stable,1,1499,520,1599,1999,420,18,14,22,12,0,18,5.8,4.2,2.8,9.0,1560,8200,3.5,1.25,6,0.12
+HD-002,FabIndia Indigo Kurta,stable,1,1599,560,1549,2099,380,16,12,28,15,0,20,4.9,3.8,2.5,9.5,1380,7600,3.2,1.10,4,0.13
+HD-003,Zara Winter Jacket,seasonal,1,3999,1680,3799,5999,1280,86,2,182,6,4,22,1.2,1.1,0.8,24.0,180,3600,2.0,0.52,-36,0.16
+HD-004,Monte Carlo Sweater,seasonal,1,2799,1120,2699,4299,1500,96,1,225,9,2,20,0.9,0.8,0.6,28.0,90,2500,1.4,0.30,-52,0.21
+HD-005,Biba Premium Silk Saree,seasonal,1,6999,2560,7299,9999,24,4,18,20,18,48,50,4.0,3.3,2.2,13.4,360,9400,4.7,1.08,12,0.11

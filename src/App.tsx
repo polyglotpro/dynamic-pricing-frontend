@@ -62,6 +62,8 @@ interface Recommendation {
   conflicts: any[];
   rule_trace: any[];
   explanation: string;
+  decision_parameters?: string[];
+  agent_decisions?: any[];
   approval_required: boolean;
   confidence: number;
 }
@@ -133,6 +135,21 @@ function clearAppStorage(): void {
 
 function safeArray<T = any>(value: any): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+function summarizeWhy(rec?: Recommendation | null): string {
+  if (!rec) return 'No explanation available';
+
+  const params = safeArray<string>(rec.decision_parameters);
+  if (params.length > 0) {
+    return params[0];
+  }
+
+  const explanation = String(rec.explanation || '').trim();
+  if (!explanation) return 'No explanation available';
+
+  const firstSentence = explanation.split('.').find((part) => part.trim().length > 0)?.trim();
+  return firstSentence ? `${firstSentence}.` : explanation.slice(0, 80);
 }
 
 async function fetchJson<T>(url: string, fallbackMessage: string): Promise<T> {
@@ -218,6 +235,27 @@ const ComparisonModal: React.FC<{
                   <div className="text-[10px] font-mono text-[var(--text)] opacity-60">
                     {rec.applied_config?.config_updated_at ? `updated_at: ${rec.applied_config.config_updated_at}` : ''}
                   </div>
+                </div>
+
+                <div className="mb-6 bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <h5 className="text-sm font-black uppercase tracking-[0.25em] text-[var(--text-h)]">Why this recommendation?</h5>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text)]">
+                      Explainability
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--text)] leading-relaxed">
+                    {rec.explanation || 'The backend returned no explanation text for this recommendation.'}
+                  </p>
+                  {safeArray<string>(rec.decision_parameters).length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {safeArray<string>(rec.decision_parameters).slice(0, 6).map((item) => (
+                        <span key={item} className="px-2 py-1 rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-bold">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {engineMode === 'ai' ? (
@@ -576,7 +614,7 @@ const App: React.FC = () => {
       return payload;
     },
     onSuccess: async (data) => {
-      await new Promise((resolve) => setTimeout(resolve, 15000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       queryClient.invalidateQueries({ queryKey: ['recommendations'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -1305,6 +1343,15 @@ const App: React.FC = () => {
                             )}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] text-[var(--text)] font-mono">{rec.sku_id}</span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest">
+                                <Lightbulb size={10} />
+                                Why
+                              </span>
+                              <p className="mt-2 text-[11px] text-[var(--text)] leading-snug opacity-80 max-w-[24rem]">
+                                {summarizeWhy(rec)}
+                              </p>
                             </div>
                             <div className="flex gap-2 mb-3 flex-wrap">
                               {rec.scenario_tags?.map((tag: string) => (
