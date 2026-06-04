@@ -152,6 +152,29 @@ function summarizeWhy(rec?: Recommendation | null): string {
   return firstSentence ? `${firstSentence}.` : explanation.slice(0, 80);
 }
 
+function getRuleLabel(rec: Recommendation | null | undefined, ruleId: string): string {
+  const trace = safeArray<any>(rec?.rule_trace);
+  const hit = trace.find((item) => String(item?.rule_id || '') === ruleId);
+  const description = String(hit?.description || '').trim();
+  return description ? `${ruleId}: ${description}` : ruleId;
+}
+
+function getRuleTooltip(rec: Recommendation | null | undefined, ruleId: string): string {
+  const trace = safeArray<any>(rec?.rule_trace);
+  const hit = trace.find((item) => String(item?.rule_id || '') === ruleId);
+  const description = String(hit?.description || '').trim();
+  const action = String(hit?.action || '').trim();
+  const evidence = hit?.evidence && typeof hit.evidence === 'object'
+    ? Object.entries(hit.evidence)
+      .slice(0, 2)
+      .map(([k, v]) => `${k}: ${String(v)}`)
+      .join(' | ')
+    : '';
+  return [description ? `${ruleId}: ${description}` : ruleId, action ? `Action: ${action}` : '', evidence ? `Evidence: ${evidence}` : '']
+    .filter(Boolean)
+    .join('\n');
+}
+
 async function fetchJson<T>(url: string, fallbackMessage: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
@@ -231,102 +254,87 @@ const ComparisonModal: React.FC<{
             {rec && (
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-8">
                 <div className="flex items-center justify-between gap-6 mb-4">
-                  <h4 className="text-xl font-heading font-extrabold text-[var(--text-h)]">Decision Trace</h4>
+                  <div>
+                    <h4 className="text-xl font-heading font-extrabold text-[var(--text-h)]">Decision Trace</h4>
+                    <p className="text-sm text-[var(--text)] mt-1 opacity-80">
+                      Combined rule and conflict trace for the selected SKU.
+                    </p>
+                  </div>
                   <div className="text-[10px] font-mono text-[var(--text)] opacity-60">
                     {rec.applied_config?.config_updated_at ? `updated_at: ${rec.applied_config.config_updated_at}` : ''}
                   </div>
                 </div>
-
-                <div className="mb-6 bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                  <div className="flex items-center justify-between gap-4 mb-3">
-                    <h5 className="text-sm font-black uppercase tracking-[0.25em] text-[var(--text-h)]">Why this recommendation?</h5>
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text)]">
-                      Explainability
-                    </span>
-                  </div>
-                  <p className="text-sm text-[var(--text)] leading-relaxed">
-                    {rec.explanation || 'The backend returned no explanation text for this recommendation.'}
-                  </p>
-                  {safeArray<string>(rec.decision_parameters).length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {safeArray<string>(rec.decision_parameters).slice(0, 6).map((item) => (
-                        <span key={item} className="px-2 py-1 rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-bold">
-                          {item}
-                        </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Pricing Rules</p>
+                    <div className="flex flex-wrap gap-2">
+                      {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('P-') && r?.fired).slice(0, 8).map((r) => (
+                        <div key={r.rule_id} className="relative group/rule">
+                          <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg border border-emerald-500/20 font-bold text-[10px] cursor-help">
+                            {r.rule_id}
+                          </span>
+                          <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
+                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500 mb-2">Pricing Rule</div>
+                            <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
+                              {String(r?.description || r?.rule_id || '')}
+                            </div>
+                            <div className="mt-2 text-[11px] text-[var(--text)] opacity-80">
+                              {String(r?.action || 'no action')}
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-
-                {engineMode === 'ai' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">AI Pricing</p>
-                      <p className="text-[var(--text-h)] font-extrabold text-lg">{rec.final_recommendation?.price_action}</p>
-                      <p className="text-[var(--text)] text-sm opacity-70 mt-1">{rec.final_recommendation?.price_change_pct}%</p>
-                    </div>
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">AI Ads</p>
-                      <p className="text-[var(--text-h)] font-extrabold text-lg">{rec.final_recommendation?.ad_action}</p>
-                      <p className="text-[var(--text)] text-sm opacity-70 mt-1">{rec.final_recommendation?.ad_change_pct}%</p>
-                    </div>
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Model Signals</p>
-                      <div className="flex flex-wrap gap-2">
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('ML-')).slice(0, 6).map((r) => (
-                          <span key={r.rule_id} className="px-2 py-1 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 font-bold text-[10px]">
-                            {r.rule_id}
-                          </span>
-                        ))}
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('ML-')).length === 0 && (
-                          <span className="text-[10px] text-[var(--text)] opacity-60">No ML trace entries</span>
-                        )}
-                      </div>
+                      {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('P-') && r?.fired).length === 0 && (
+                        <span className="text-[10px] text-[var(--text)] opacity-60">No pricing rules fired</span>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Pricing Rules</p>
-                      <div className="flex flex-wrap gap-2">
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('P-') && r?.fired).slice(0, 8).map((r) => (
-                          <span key={r.rule_id} className="px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg border border-emerald-500/20 font-bold text-[10px]">
+                  <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Advertising Rules</p>
+                    <div className="flex flex-wrap gap-2">
+                      {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('A-') && r?.fired).slice(0, 8).map((r) => (
+                        <div key={r.rule_id} className="relative group/rule">
+                          <span className="px-2 py-1 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 font-bold text-[10px] cursor-help">
                             {r.rule_id}
                           </span>
-                        ))}
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('P-') && r?.fired).length === 0 && (
-                          <span className="text-[10px] text-[var(--text)] opacity-60">No pricing rules fired</span>
-                        )}
-                      </div>
+                          <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
+                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 mb-2">Advertising Rule</div>
+                            <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
+                              {String(r?.description || r?.rule_id || '')}
+                            </div>
+                            <div className="mt-2 text-[11px] text-[var(--text)] opacity-80">
+                              {String(r?.action || 'no action')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('A-') && r?.fired).length === 0 && (
+                        <span className="text-[10px] text-[var(--text)] opacity-60">No advertising rules fired</span>
+                      )}
                     </div>
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Advertising Rules</p>
-                      <div className="flex flex-wrap gap-2">
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('A-') && r?.fired).slice(0, 8).map((r) => (
-                          <span key={r.rule_id} className="px-2 py-1 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 font-bold text-[10px]">
-                            {r.rule_id}
-                          </span>
-                        ))}
-                        {safeArray<any>(rec.rule_trace).filter(r => String(r?.rule_id || '').startsWith('A-') && r?.fired).length === 0 && (
-                          <span className="text-[10px] text-[var(--text)] opacity-60">No advertising rules fired</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Conflicts</p>
-                      <div className="flex flex-wrap gap-2">
-                        {safeArray<any>(rec.conflicts).slice(0, 8).map((c) => (
-                          <span key={c.conflict_id || c.type} className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20 font-bold text-[10px]">
+                  </div>
+                  <div className="bg-black/5 dark:bg-white/5 border border-[var(--border)] rounded-2xl p-5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 mb-2">Conflicts</p>
+                    <div className="flex flex-wrap gap-2">
+                      {safeArray<any>(rec.conflicts).slice(0, 8).map((c) => (
+                        <div key={c.conflict_id || c.type} className="relative group/rule">
+                          <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20 font-bold text-[10px] cursor-help">
                             {c.conflict_id || c.type}
                           </span>
-                        ))}
-                        {safeArray<any>(rec.conflicts).length === 0 && (
-                          <span className="text-[10px] text-[var(--text)] opacity-60">No conflicts</span>
-                        )}
-                      </div>
+                          <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
+                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-500 mb-2">Conflict Resolution</div>
+                            <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
+                              {String(c?.resolution || c?.type || 'Conflict')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {safeArray<any>(rec.conflicts).length === 0 && (
+                        <span className="text-[10px] text-[var(--text)] opacity-60">No conflicts</span>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -1345,13 +1353,25 @@ const App: React.FC = () => {
                               <span className="text-[10px] text-[var(--text)] font-mono">{rec.sku_id}</span>
                             </div>
                             <div className="mt-2">
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest">
-                                <Lightbulb size={10} />
-                                Why
-                              </span>
-                              <p className="mt-2 text-[11px] text-[var(--text)] leading-snug opacity-80 max-w-[24rem]">
-                                {summarizeWhy(rec)}
-                              </p>
+                              <div className="relative inline-block group/why">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest cursor-help">
+                                  <Lightbulb size={10} />
+                                  Why
+                                </span>
+                                <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/why:opacity-100 group-hover/why:translate-y-0">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 mb-2">Why this recommendation</div>
+                                  <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
+                                    {summarizeWhy(rec)}
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {safeArray<string>(rec.decision_parameters).slice(0, 3).map((item) => (
+                                      <span key={item} className="px-2 py-1 rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-500 text-[10px] font-bold">
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                             <div className="flex gap-2 mb-3 flex-wrap">
                               {rec.scenario_tags?.map((tag: string) => (
