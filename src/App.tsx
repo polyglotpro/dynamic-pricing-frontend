@@ -140,16 +140,45 @@ function safeArray<T = any>(value: any): T[] {
 function summarizeWhy(rec?: Recommendation | null): string {
   if (!rec) return 'No explanation available';
 
-  const params = safeArray<string>(rec.decision_parameters);
-  if (params.length > 0) {
-    return params[0];
+  const objective = String(rec.primary_objective || '').replaceAll('_', ' ').trim();
+  const priceAction = String(rec.final_recommendation?.price_action || '').replaceAll('_', ' ').trim();
+  const adAction = String(rec.final_recommendation?.ad_action || '').replaceAll('_', ' ').trim();
+  const params = safeArray<string>(rec.decision_parameters).slice(0, 2);
+  const conflictCount = safeArray<any>(rec.conflicts).length;
+
+  const tone =
+    conflictCount > 0 ? 'conflict' :
+    objective.includes('sell through') ? 'clearance' :
+    objective.includes('margin') || objective.includes('protection') ? 'protection' :
+    objective.includes('visibility') ? 'growth' :
+    'stable';
+
+  const leadByTone: Record<string, string> = {
+    conflict: 'The orchestrator resolved a conflict before finalizing the action.',
+    clearance: 'The orchestrator prioritized sell-through because inventory pressure is high.',
+    protection: 'The orchestrator protected margin and avoided an aggressive move.',
+    growth: 'The orchestrator supported growth where the business can absorb it.',
+    stable: 'The orchestrator found a balanced path and kept the action controlled.',
+  };
+
+  const detailBits = [
+    objective ? `Objective: ${objective}` : '',
+    priceAction ? `Price: ${priceAction}` : '',
+    adAction ? `Ads: ${adAction}` : '',
+    ...params,
+  ].filter(Boolean);
+
+  const lead = leadByTone[tone] || leadByTone.stable;
+
+  if (detailBits.length > 0) {
+    return `${lead} ${detailBits.join('; ')}.`;
   }
 
   const explanation = String(rec.explanation || '').trim();
-  if (!explanation) return 'No explanation available';
+  if (!explanation) return lead;
 
   const firstSentence = explanation.split('.').find((part) => part.trim().length > 0)?.trim();
-  return firstSentence ? `${firstSentence}.` : explanation.slice(0, 80);
+  return firstSentence ? `${lead} ${firstSentence}.` : `${lead} ${explanation.slice(0, 80)}`;
 }
 
 function engineLabel(mode: string): string {
