@@ -152,6 +152,10 @@ function summarizeWhy(rec?: Recommendation | null): string {
   return firstSentence ? `${firstSentence}.` : explanation.slice(0, 80);
 }
 
+function engineLabel(mode: string): string {
+  return mode === 'ai' ? 'AI Engine' : 'Rule Engine';
+}
+
 function getRuleLabel(rec: Recommendation | null | undefined, ruleId: string): string {
   const trace = safeArray<any>(rec?.rule_trace);
   const hit = trace.find((item) => String(item?.rule_id || '') === ruleId);
@@ -173,6 +177,48 @@ function getRuleTooltip(rec: Recommendation | null | undefined, ruleId: string):
   return [description ? `${ruleId}: ${description}` : ruleId, action ? `Action: ${action}` : '', evidence ? `Evidence: ${evidence}` : '']
     .filter(Boolean)
     .join('\n');
+}
+
+function summarizeConflict(conflict: any): string {
+  if (!conflict) return 'Conflict details unavailable.';
+  const type = String(conflict.type || conflict.conflict_id || 'Conflict');
+  const resolution = String(conflict.resolution || '').trim();
+  const pricing = conflict.pricing?.action ? `Pricing: ${conflict.pricing.action}` : '';
+  const ads = conflict.advertising?.action ? `Advertising: ${conflict.advertising.action}` : '';
+  return [type, resolution, pricing, ads].filter(Boolean).join(' | ');
+}
+
+function conflictHeadline(conflict: any): string {
+  if (!conflict) return 'Conflict: unavailable';
+  const type = String(conflict.type || conflict.conflict_id || 'conflict').toLowerCase();
+  if (type.includes('price_down_ad_up')) return 'Conflict: price down vs ad up';
+  if (type.includes('ad_up_low_stock')) return 'Conflict: ad expansion vs low stock';
+  if (type.includes('high_uncertainty')) return 'Conflict: uncertainty vs action size';
+  if (type.includes('margin_floor')) return 'Conflict: margin floor breach';
+  return `Conflict: ${String(conflict.type || conflict.conflict_id || 'unknown')}`;
+}
+
+function conflictTakeaway(conflict: any): string {
+  if (!conflict) return 'Result: conflict resolved by orchestrator.';
+  const resolution = String(conflict.resolution || '').toLowerCase();
+  const type = String(conflict.type || '').toLowerCase();
+
+  if (resolution.includes('block ad increase') || type.includes('price_down_ad_up')) {
+    return 'Result: ad expansion was blocked to protect margin.';
+  }
+  if (resolution.includes('hold ad increase') || resolution.includes('request approval')) {
+    return 'Result: the engine paused for approval before taking risk.';
+  }
+  if (resolution.includes('override ad expansion') || type.includes('ad_up_low_stock')) {
+    return 'Result: growth was restrained because stock was too tight.';
+  }
+  if (resolution.includes('reject margin-damaging') || type.includes('margin_floor')) {
+    return 'Result: the recommendation was held back to protect margin.';
+  }
+  if (resolution.includes('limit combined moves') || type.includes('high_uncertainty')) {
+    return 'Result: the engine dampened moves to reduce risk.';
+  }
+  return 'Result: conflict resolved by orchestrator.';
 }
 
 function getWhyTone(rec: Recommendation | null | undefined): {
@@ -266,7 +312,7 @@ const ComparisonModal: React.FC<{
                   ? 'text-blue-500 bg-blue-500/10 border-blue-500/20'
                   : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
                 }`}>
-                {engineMode === 'ai' ? 'AI-Optimized' : 'Rule-Based'}{configVersion ? ` v${configVersion}` : ''}
+                {engineLabel(engineMode)}{configVersion ? ` v${configVersion}` : ''}
               </span>
               <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-[var(--border)] text-[var(--text)] bg-black/5 dark:bg-white/5">
                 Integrated vs Separate Simulation
@@ -393,10 +439,16 @@ const ComparisonModal: React.FC<{
                           <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/rule:opacity-100 group-hover/rule:translate-y-0">
                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-amber-500 mb-2">
                               <ShieldAlert size={10} />
-                              Conflict Resolution
+                              {conflictHeadline(c)}
                             </div>
                             <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
                               {String(c?.resolution || c?.type || 'Conflict')}
+                            </div>
+                            <div className="mt-2 text-[11px] text-[var(--text)] opacity-80">
+                              {summarizeConflict(c)}
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold text-[var(--text)] opacity-80">
+                              {conflictTakeaway(c)}
                             </div>
                           </div>
                         </div>
@@ -1431,7 +1483,7 @@ const App: React.FC = () => {
                               <div className="relative inline-block group/why">
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest cursor-help ${tone.badge}`}>
                                   {tone.icon}
-                                  Why
+                                  Why this action?
                                 </span>
                                 <div className={`pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/why:opacity-100 group-hover/why:translate-y-0 ${tone.panel}`}>
                                   <div className="text-[10px] font-black uppercase tracking-[0.25em] mb-2 text-[var(--text-h)]">{tone.label}</div>
@@ -1457,10 +1509,30 @@ const App: React.FC = () => {
                                 </span>
                               ))}
                               {rec.conflicts && rec.conflicts.length > 0 && (
-                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20 flex items-center gap-1">
-                                  <ShieldAlert size={10} />
-                                  Conflict Resolved
-                                </span>
+                                <div className="relative group/conflict">
+                                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20 flex items-center gap-1 cursor-help">
+                                    <ShieldAlert size={10} />
+                                    Conflict Resolved
+                                  </span>
+                                  <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-80 max-w-[70vw] rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 shadow-2xl opacity-0 translate-y-1 transition-all duration-150 group-hover/conflict:opacity-100 group-hover/conflict:translate-y-0">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400 mb-2">{conflictHeadline(rec.conflicts[0])}</div>
+                                    <div className="text-sm font-semibold text-[var(--text-h)] leading-snug">
+                                      {summarizeConflict(rec.conflicts[0])}
+                                    </div>
+                                    <div className="mt-2 text-[11px] font-bold text-[var(--text)] opacity-80">
+                                      {conflictTakeaway(rec.conflicts[0])}
+                                    </div>
+                                    {safeArray<any>(rec.conflicts).slice(1, 3).length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        {safeArray<any>(rec.conflicts).slice(1, 3).map((c) => (
+                                          <span key={c.conflict_id || c.type} className="px-2 py-1 rounded-lg border border-[var(--border)] bg-black/5 dark:bg-white/5 text-[var(--text)] text-[10px] font-bold">
+                                            {c.conflict_id || c.type}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1695,7 +1767,7 @@ const App: React.FC = () => {
                             : 'bg-black/5 dark:bg-white/5 text-[var(--text)] border-[var(--border)] hover:border-emerald-500/20'
                           }`}
                       >
-                        Rule-Based
+                        Rule Engine
                       </button>
                       <button
                         type="button"
@@ -1705,11 +1777,11 @@ const App: React.FC = () => {
                             : 'bg-black/5 dark:bg-white/5 text-[var(--text)] border-[var(--border)] hover:border-blue-500/20'
                           }`}
                       >
-                        AI-Optimized
+                        AI Engine
                       </button>
                     </div>
                     <p className="text-[var(--text)] text-sm opacity-70 font-medium mt-4">
-                      Rule-Based uses tagging + pricing/ads agents + conflict resolution. AI-Optimized uses elasticity-based search + momentum ad scaling and is approval-gated.
+                      Rule Engine uses tagging + pricing/ads agents + conflict resolution. AI Engine uses elasticity-based search + momentum ad scaling and is approval-gated.
                     </p>
                   </section>
 
