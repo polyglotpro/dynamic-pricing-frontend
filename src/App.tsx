@@ -185,6 +185,21 @@ function engineLabel(mode: string): string {
   return mode === 'ai' ? 'AI Engine' : 'Rule Engine';
 }
 
+function formatTimestampIST(timestamp: string): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+}
+
 function getRuleLabel(rec: Recommendation | null | undefined, ruleId: string): string {
   const trace = safeArray<any>(rec?.rule_trace);
   const hit = trace.find((item) => String(item?.rule_id || '') === ruleId);
@@ -904,9 +919,9 @@ const App: React.FC = () => {
       : recommendationsResponse?.results
   );
 
-  const latestUpload = safeArray<any>(uploadHistory)[0];
-  const activeCatalogLabel = latestUpload?.filename || 'No catalog uploaded yet';
-  const activeCatalogTimestamp = latestUpload?.timestamp || '';
+  const latestSuccessfulUpload = safeArray<any>(uploadHistory).find((entry) => entry?.status === 'success');
+  const activeCatalogLabel = latestSuccessfulUpload?.filename || 'No catalog uploaded yet';
+  const activeCatalogTimestamp = latestSuccessfulUpload?.timestamp || '';
 
   const selectedSku = recommendationList.find(r => r.sku_id === selectedSkuId);
 
@@ -1302,7 +1317,7 @@ const App: React.FC = () => {
               <p className="text-sm text-slate-600 dark:text-gray-300 font-semibold break-all">{activeCatalogLabel}</p>
               {activeCatalogTimestamp && (
                 <p className="text-[10px] text-slate-500 dark:text-gray-400 mt-1 font-mono">
-                  uploaded {activeCatalogTimestamp}
+                  uploaded {formatTimestampIST(activeCatalogTimestamp)} IST
                 </p>
               )}
             </div>
@@ -1328,13 +1343,6 @@ const App: React.FC = () => {
                       activeTab === 'research' ? 'Deterministic simulation comparing agent architectures' :
                         activeTab === 'activity' ? 'Live audit trail of autonomous and manual actions' : 'Catalog management and ingestion history'}
               </p>
-              <div className="mt-4 inline-flex items-center gap-3 px-4 py-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] shadow-sm">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Dataset</span>
-                <span className="text-sm font-bold text-[var(--text-h)] break-all">{activeCatalogLabel}</span>
-                {activeCatalogTimestamp && (
-                  <span className="text-[10px] font-mono text-[var(--text)] opacity-60">({activeCatalogTimestamp})</span>
-                )}
-              </div>
             </div>
             <div className="flex gap-3 items-center">
               <AnimatePresence>
