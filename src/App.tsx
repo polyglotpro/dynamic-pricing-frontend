@@ -2061,13 +2061,20 @@ const App: React.FC = () => {
                 </div>
                 <div className="px-8 py-4 border-b border-[var(--border)] bg-black/5 dark:bg-black/20 flex flex-wrap items-center justify-between gap-4">
                   <div className="text-[var(--text)] text-xs font-medium opacity-80">
+                    {config ? (
+                      `Current Global Config v${config.config_version ?? 'unknown'} (${config.engine_mode ?? 'unknown'})`
+                    ) : (
+                      'Current Global Config: loading...'
+                    )}
+                  </div>
+                  <div className="text-[var(--text)] text-[10px] font-medium opacity-60">
                     {(() => {
                       const recs = recommendationList;
                       const applied = recs[0]?.applied_config;
                       if (!applied) return 'Applied Config: unknown (backend not returning applied_config yet)';
                       const version = applied.config_version ?? 'unknown';
                       const mode = applied.engine_mode ?? 'unknown';
-                      return `Applied Config v${version} (${mode})`;
+                      return `Applied Config on SKUs v${version} (${mode})`;
                     })()}
                   </div>
                   <div className="text-[var(--text)] text-[10px] font-mono opacity-60">
