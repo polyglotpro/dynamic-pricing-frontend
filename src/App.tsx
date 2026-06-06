@@ -346,17 +346,7 @@ const ComparisonModal: React.FC<{
   );
   const endingInventoryDelta = Number(
     data?.ending_inventory_delta ??
-    data?.delta?.ending_inventory ??
-    0
-  );
-  const sellThroughDelta = Number(
-    data?.sell_through_delta ??
-    data?.delta?.sell_through_pct ??
-    0
-  );
-  const unitsSoldDelta = Number(
-    data?.units_sold_delta ??
-    data?.delta?.units_sold ??
+    ((data?.integrated?.ending_inventory ?? 0) - (data?.separate?.ending_inventory ?? 0)) ??
     0
   );
 
@@ -561,36 +551,12 @@ const ComparisonModal: React.FC<{
                   <p className={`text-5xl font-heading font-extrabold ${profitDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {profitDelta >= 0 ? '+' : ''}{Math.round(profitDelta).toLocaleString()}
                   </p>
+                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text)] opacity-60">
+                    Ending Inventory Δ: {endingInventoryDelta <= 0 ? '' : '+'}{Math.round(endingInventoryDelta).toLocaleString()}
+                  </p>
                 </div>
               </div>
             </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text)] opacity-60">Profit Delta</p>
-                <p className={`mt-2 text-2xl font-heading font-extrabold ${profitDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {profitDelta >= 0 ? '+' : ''}{Math.round(profitDelta).toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text)] opacity-60">Ending Inventory Delta</p>
-                <p className={`mt-2 text-2xl font-heading font-extrabold ${endingInventoryDelta <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {endingInventoryDelta <= 0 ? '' : '+'}{Math.round(endingInventoryDelta).toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text)] opacity-60">Sell-through Delta</p>
-                <p className={`mt-2 text-2xl font-heading font-extrabold ${sellThroughDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {sellThroughDelta >= 0 ? '+' : ''}{Math.round(sellThroughDelta)}%
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text)] opacity-60">Units Sold Delta</p>
-                <p className={`mt-2 text-2xl font-heading font-extrabold ${unitsSoldDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {unitsSoldDelta >= 0 ? '+' : ''}{Math.round(unitsSoldDelta).toLocaleString()}
-                </p>
-              </div>
-            </div>
 
             {/* Side by Side Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
